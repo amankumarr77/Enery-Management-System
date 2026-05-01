@@ -4,9 +4,11 @@ import sys
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, DeclarativeBase
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.config import DATABASE_URL
-
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+DATABASE_URL = os.environ.get(
+    "DATABASE_URL",
+    f"sqlite:///{os.path.join(BASE_DIR, 'emsjb.db')}"
+)
 # ── Engine setup ────────────────────────────────────────────
 connect_args = {}
 if DATABASE_URL.startswith("sqlite"):

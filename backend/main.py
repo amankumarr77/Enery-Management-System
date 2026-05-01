@@ -51,7 +51,9 @@ async def lifespan(app: FastAPI):
     global market_engine, trading_engine
 
     logger.info("Loading data and training model...")
-    df = load_price_data("data/iex_dam_hourly_2024_25.csv")
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    data_path = os.path.join(BASE_DIR, "data", "iex_dam_hourly_2024_25.csv")
+    df = load_price_data(data_path)
     model, residuals, accuracy, train_end = train_forecast_model(df)
     app_state["df"] = df
     app_state["model"] = model
@@ -101,9 +103,11 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="EMSJB Energy Trading Platform", lifespan=lifespan)
 
+origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -697,3 +701,6 @@ def export_csv(run_id: int, db: Session = Depends(get_db)):
         media_type="text/csv",
         headers={"Content-Disposition": f"attachment; filename=simulation_run_{run_id}.csv"}
     )
+@app.get("/")
+def health():
+    return {"status": "ok"}

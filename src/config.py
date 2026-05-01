@@ -34,12 +34,16 @@ AUTO_TRADE_ENABLED = False               # Default auto-trade off
 TRADING_MODE = os.getenv("TRADING_MODE", "SIMULATED")  # SIMULATED or LIVE
 
 # ── Authentication ──────────────────────────────────────────
-SECRET_KEY = os.getenv("SECRET_KEY", "emsjb-dev-secret-key-change-in-prod-2026")
+# Make it fail loudly in prod if SECRET_KEY is missing
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("SECRET_KEY environment variable is not set!")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 480        # 8 hour sessions
 
 # ── Database ────────────────────────────────────────────────
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "sqlite:///./emsjb.db"  # Fallback to SQLite for local dev
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    import warnings
+    warnings.warn("DATABASE_URL not set — using SQLite (ephemeral on Render!)")
+    DATABASE_URL = f"sqlite:///{os.path.join(os.path.dirname(__file__), '..', 'emsjb.db')}"

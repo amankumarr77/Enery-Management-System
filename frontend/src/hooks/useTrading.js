@@ -1,8 +1,9 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useWebSocket } from './useWebSocket'
 
-const API = 'http://127.0.0.1:8000'
-const WS_URL = 'ws://127.0.0.1:8000/ws/trading'
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const WS_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000')
+  .replace(/^http/, 'ws') + '/ws/trading'
 
 /**
  * Hook for trading operations: orders, trades, position, and engine control.

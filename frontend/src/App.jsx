@@ -12,7 +12,9 @@ import { useMarketData } from './hooks/useMarketData'
 import { useTrading } from './hooks/useTrading'
 import './App.css'
 
-const API = 'http://127.0.0.1:8000'
+const API = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000'
+const WS_URL = (import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000')
+  .replace(/^http/, 'ws') + '/ws/trading'
 
 function App() {
   const [theme, setTheme] = useState(() => localStorage.getItem('emsjb-theme') || 'dark')
