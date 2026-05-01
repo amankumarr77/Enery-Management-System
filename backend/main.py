@@ -51,10 +51,21 @@ async def lifespan(app: FastAPI):
     global market_engine, trading_engine
 
     logger.info("Loading data and training model...")
-    BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     data_path = os.path.join(BASE_DIR, "data", "iex_dam_hourly_2024_25.csv")
-    df = load_price_data(data_path)
-    model, residuals, accuracy, train_end = train_forecast_model(df)
+
+    df = None
+    model, residuals, accuracy, train_end = None, None, {}, 0
+
+    if not os.path.exists(data_path):
+        logger.warning(f"Data file not found at {data_path}")
+    else:
+        df = load_price_data(data_path)
+        try:
+            model, residuals, accuracy, train_end = train_forecast_model(df)
+        except Exception as e:
+            logger.error(f"Model training failed: {e}")
+
     app_state["df"] = df
     app_state["model"] = model
     app_state["residuals"] = residuals
@@ -64,32 +75,31 @@ async def lifespan(app: FastAPI):
     # Create tables
     Base.metadata.create_all(bind=engine)
 
-    # Ensure default admin
+    # Ensure admin
     db = SessionLocal()
     try:
         ensure_default_admin(db)
     finally:
         db.close()
 
-    # Initialize market data engine
-    market_engine = MarketDataEngine(df, speed_multiplier=cfg.SIMULATION_SPEED_MULTIPLIER)
+    # Initialize engines ONLY if data exists
+    if df is not None:
+        market_engine = MarketDataEngine(df, speed_multiplier=cfg.SIMULATION_SPEED_MULTIPLIER)
 
-    # Wire WebSocket broadcasting to market engine
-    async def broadcast_tick(tick):
-        await ws_manager.send_price_tick(tick)
+        async def broadcast_tick(tick):
+            await ws_manager.send_price_tick(tick)
 
-    market_engine.subscribe(broadcast_tick)
+        market_engine.subscribe(broadcast_tick)
 
-    # Initialize trading engine
-    trading_engine = TradingEngine(market_engine, order_manager)
-    trading_engine.set_model(model, residuals)
+        trading_engine = TradingEngine(market_engine, order_manager)
+        trading_engine.set_model(model, residuals)
 
-    # Start market data feed
-    await market_engine.start()
+        await market_engine.start()
 
-    logger.info(f"Startup complete. Dataset: {len(df)} hours, Train end idx: {train_end}")
-    logger.info(f"Forecast accuracy: {accuracy}")
-    logger.info(f"Market feed speed: {cfg.SIMULATION_SPEED_MULTIPLIER}x")
+        logger.info(f"Startup complete. Dataset: {len(df)} hours, Train end idx: {train_end}")
+    else:
+        logger.warning("Running without dataset. Market + trading disabled.")
+
     yield
 
     # Shutdown
@@ -97,6 +107,7 @@ async def lifespan(app: FastAPI):
         await trading_engine.stop()
     if market_engine:
         await market_engine.stop()
+
     app_state.clear()
     logger.info("Shutdown complete")
 

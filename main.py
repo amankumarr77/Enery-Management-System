@@ -18,7 +18,11 @@ def main():
     df = load_price_data("data/iex_dam_hourly_2024_25.csv")
 
     logger.info("Training forecast model...")
-    model, residuals, accuracy, train_end = train_forecast_model(df)
+    try:
+        model, residuals, accuracy, train_end = train_forecast_model(df)
+    except Exception as e:
+        logger.error(f"Model training failed: {e}")
+        model, residuals, accuracy, train_end = None, None, {}, 0
     logger.info(f"Model trained. Test accuracy: MAE={accuracy['mae']}, RMSE={accuracy['rmse']}, MAPE={accuracy['mape']}%")
 
     limit = 500
